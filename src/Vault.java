@@ -1,90 +1,125 @@
-import java.io.*;
+import javax.crypto.Cipher;
+import javax.crypto.spec.SecretKeySpec;
+import java.nio.file.*;
 import java.util.*;
 import java.util.Base64;
 
 public class Vault {
     private static final String FILE_NAME = "vault.txt";
+    private static final String SECRET_KEY = "1234567890123456"; // 16-char key
+    private static final SecretKeySpec keySpec = new SecretKeySpec(SECRET_KEY.getBytes(), "AES");
 
-    public static void addPassword(String account, String password) {
-        try (FileWriter fw = new FileWriter(FILE_NAME, true);
-             BufferedWriter bw = new BufferedWriter(fw)) {
+    // Encrypt text
+    private static String encrypt(String plainText) throws Exception {
+        Cipher cipher = Cipher.getInstance("AES");
+        cipher.init(Cipher.ENCRYPT_MODE, keySpec);
+        return Base64.getEncoder().encodeToString(cipher.doFinal(plainText.getBytes()));
+    }
 
-            String encrypted = Base64.getEncoder().encodeToString(password.getBytes());
-            bw.write(account + ":" + encrypted);
-            bw.newLine();
-            System.out.println("Password saved successfully!");
+    // Decrypt text
+    private static String decrypt(String encryptedText) throws Exception {
+        Cipher cipher = Cipher.getInstance("AES");
+        cipher.init(Cipher.DECRYPT_MODE, keySpec);
+        return new String(cipher.doFinal(Base64.getDecoder().decode(encryptedText)));
+    }
 
-        } catch (IOException e) {
-            System.out.println("Error saving password: " + e.getMessage());
+    // Add password entry
+    public static void addPassword(String account, String password) throws Exception {
+        String encrypted = encrypt(account + ":" + password);
+        Files.write(Paths.get(FILE_NAME), (encrypted + System.lineSeparator()).getBytes(),
+                StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+        System.out.println("Password saved successfully!");
+    }
+
+    // View all passwords
+    public static void viewPasswords() throws Exception {
+        if (!Files.exists(Paths.get(FILE_NAME))) {
+            System.out.println("Vault is empty!");
+            return;
+        }
+        List<String> lines = Files.readAllLines(Paths.get(FILE_NAME));
+        for (String line : lines) {
+            System.out.println(decrypt(line));
         }
     }
 
-    public static void viewPasswords() {
-        File file = new File(FILE_NAME);
-        if (!file.exists()) {
-            System.out.println("No passwords found.");
+    // Delete password by account name
+    public static void deletePassword(String accountName) throws Exception {
+        if (!Files.exists(Paths.get(FILE_NAME))) {
+            System.out.println("Vault is empty!");
             return;
         }
 
-        try (BufferedReader br = new BufferedReader(new FileReader(FILE_NAME))) {
-            String line;
-            boolean hasData = false;
-            while ((line = br.readLine()) != null) {
-                if (line.trim().isEmpty()) continue;
-                String[] parts = line.split(":", 2);
-                if (parts.length == 2) {
-                    String account = parts[0];
-                    String decrypted = new String(Base64.getDecoder().decode(parts[1]));
-                    System.out.println(account + " -> " + decrypted);
-                    hasData = true;
-                }
+        List<String> lines = Files.readAllLines(Paths.get(FILE_NAME));
+        List<String> updatedLines = new ArrayList<>();
+        boolean deleted = false;
+
+        for (String line : lines) {
+            String decrypted = decrypt(line);
+            if (decrypted.toLowerCase().startsWith(accountName.toLowerCase() + ":")) {
+                deleted = true;
+            } else {
+                updatedLines.add(line);
             }
-            if (!hasData) {
-                System.out.println("No passwords stored.");
-            }
-        } catch (IOException e) {
-            System.out.println("Error reading passwords: " + e.getMessage());
+        }
+
+        Files.write(Paths.get(FILE_NAME), updatedLines);
+        if (deleted) {
+            System.out.println("Password deleted successfully for " + accountName);
+        } else {
+            System.out.println("Account not found: " + accountName);
         }
     }
 
-    public static void deletePassword(String accountToDelete) {
-        File file = new File(FILE_NAME);
-        if (!file.exists()) {
-            System.out.println("No passwords to delete.");
+    // Search for a specific account
+    public static void searchPassword(String accountName) throws Exception {
+        if (!Files.exists(Paths.get(FILE_NAME))) {
+            System.out.println("Vault is empty!");
             return;
         }
-
-        List<String> lines = new ArrayList<>();
+        List<String> lines = Files.readAllLines(Paths.get(FILE_NAME));
         boolean found = false;
 
-        try (BufferedReader br = new BufferedReader(new FileReader(FILE_NAME))) {
-            String line;
-            while ((line = br.readLine()) != null) {
-                if (!line.startsWith(accountToDelete + ":")) {
-                    lines.add(line);
-                } else {
-                    found = true;
-                }
+        for (String line : lines) {
+            String decrypted = decrypt(line);
+            if (decrypted.toLowerCase().startsWith(accountName.toLowerCase() + ":")) {
+                System.out.println("Found -> " + decrypted);
+                found = true;
             }
-        } catch (IOException e) {
-            System.out.println("Error reading file: " + e.getMessage());
+        }
+
+        if (!found) {
+            System.out.println("No account found with name: " + accountName);
+        }
+    }
+
+    // Update password for a given account
+    public static void updatePassword(String accountName, String newPassword) throws Exception {
+        if (!Files.exists(Paths.get(FILE_NAME))) {
+            System.out.println("Vault is empty!");
             return;
         }
 
-        try (BufferedWriter bw = new BufferedWriter(new FileWriter(FILE_NAME))) {
-            for (String l : lines) {
-                bw.write(l);
-                bw.newLine();
+        List<String> lines = Files.readAllLines(Paths.get(FILE_NAME));
+        List<String> updatedLines = new ArrayList<>();
+        boolean updated = false;
+
+        for (String line : lines) {
+            String decrypted = decrypt(line);
+            if (decrypted.toLowerCase().startsWith(accountName.toLowerCase() + ":")) {
+                String updatedEntry = encrypt(accountName + ":" + newPassword);
+                updatedLines.add(updatedEntry);
+                updated = true;
+            } else {
+                updatedLines.add(line);
             }
-        } catch (IOException e) {
-            System.out.println("Error writing file: " + e.getMessage());
-            return;
         }
 
-        if (found) {
-            System.out.println("Password for account '" + accountToDelete + "' deleted.");
+        Files.write(Paths.get(FILE_NAME), updatedLines);
+        if (updated) {
+            System.out.println("Password updated successfully for " + accountName);
         } else {
-            System.out.println("Account not found.");
+            System.out.println("Account not found: " + accountName);
         }
     }
 }
