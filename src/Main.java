@@ -1,85 +1,82 @@
 import java.util.Scanner;
-import java.io.Console;
 
 public class Main {
-    public static void main(String[] args) {
+    public static void main(String[] args) throws Exception {
         Scanner sc = new Scanner(System.in);
 
+        // Check if master password exists
+        if (!java.nio.file.Files.exists(java.nio.file.Paths.get("master.key"))) {
+            System.out.print("Set a master password: ");
+            String newPass = sc.nextLine();
+            Auth.setupMaster(newPass);
+        } else {
+            System.out.print("Enter master password: ");
+            String input = sc.nextLine();
+
+            if (!Auth.verifyMaster(input)) {
+                System.out.println("❌ Wrong master password. Exiting...");
+                return;
+            }
+            System.out.println("✅ Access granted!");
+        }
+
+        // Show menu
         while (true) {
-            System.out.println("\n--- Password Vault ---");
+            System.out.println("\n=== Password Vault ===");
             System.out.println("1. Add Password");
             System.out.println("2. View Passwords");
             System.out.println("3. Delete Password");
             System.out.println("4. Search Password");
-            System.out.println("5. Update Password");
+            System.out.println("5. Change Master Password");
             System.out.println("6. Exit");
-            System.out.print("Choose an option: ");
+            System.out.print("Choose: ");
 
             int choice = sc.nextInt();
             sc.nextLine(); // consume newline
 
-            try {
-                switch (choice) {
-                    case 1:
-                        System.out.print("Enter account name: ");
-                        String account = sc.nextLine();
+            switch (choice) {
+                case 1:
+                    System.out.print("Enter account: ");
+                    String account = sc.nextLine();
+                    System.out.print("Enter password: ");
+                    String password = sc.nextLine();
+                    Vault.addPassword(account, password);
+                    break;
 
-                        // Secure password input
-                        Console console = System.console();
-                        String password;
-                        if (console != null) {
-                            char[] pwdArray = console.readPassword("Enter password: ");
-                            password = new String(pwdArray);
-                        } else {
-                            System.out.print("Enter password: ");
-                            password = sc.nextLine();
-                        }
+                case 2:
+                    Vault.viewPasswords();
+                    break;
 
-                        Vault.addPassword(account, password);
-                        break;
+                case 3:
+                    System.out.print("Enter account to delete: ");
+                    String delAcc = sc.nextLine();
+                    Vault.deletePassword(delAcc);
+                    break;
 
-                    case 2:
-                        Vault.viewPasswords();
-                        break;
+                case 4:
+                    System.out.print("Enter account to search: ");
+                    String searchAcc = sc.nextLine();
+                    Vault.searchPassword(searchAcc);
+                    break;
 
-                    case 3:
-                        System.out.print("Enter account name to delete: ");
-                        String delAccount = sc.nextLine();
-                        Vault.deletePassword(delAccount);
-                        break;
+                case 5:
+                    System.out.print("Enter current master password: ");
+                    String oldPass = sc.nextLine();
+                    if (Auth.verifyMaster(oldPass)) {
+                        System.out.print("Enter new master password: ");
+                        String newPass = sc.nextLine();
+                        Auth.changeMaster(newPass);
+                    } else {
+                        System.out.println("❌ Wrong master password. Cannot change.");
+                    }
+                    break;
 
-                    case 4:
-                        System.out.print("Enter account name to search: ");
-                        String searchAccount = sc.nextLine();
-                        Vault.searchPassword(searchAccount);
-                        break;
+                case 6:
+                    System.out.println("Exiting...");
+                    return;
 
-                    case 5:
-                        System.out.print("Enter account name to update: ");
-                        String updAccount = sc.nextLine();
-
-                        Console console2 = System.console();
-                        String newPassword;
-                        if (console2 != null) {
-                            char[] pwdArray2 = console2.readPassword("Enter new password: ");
-                            newPassword = new String(pwdArray2);
-                        } else {
-                            System.out.print("Enter new password: ");
-                            newPassword = sc.nextLine();
-                        }
-
-                        Vault.updatePassword(updAccount, newPassword);
-                        break;
-
-                    case 6:
-                        System.out.println("Exiting... Goodbye!");
-                        return;
-
-                    default:
-                        System.out.println("Invalid option! Try again.");
-                }
-            } catch (Exception e) {
-                System.out.println("Error: " + e.getMessage());
+                default:
+                    System.out.println("Invalid option!");
             }
         }
     }
