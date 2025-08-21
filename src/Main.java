@@ -20,7 +20,7 @@ public class Main {
             System.out.println("✅ Access granted!");
         }
 
-        // Show menu
+        // Menu
         while (true) {
             System.out.println("\n=== Password Vault ===");
             System.out.println("1. Add Password");

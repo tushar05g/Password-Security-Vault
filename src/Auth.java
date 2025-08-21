@@ -26,8 +26,7 @@ public class Auth {
         String hash = hashPassword(password, salt);
         String content = Base64.getEncoder().encodeToString(salt) + ":" + hash;
 
-        Files.write(Paths.get(MASTER_FILE), content.getBytes(),
-                StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+        Files.write(Paths.get(MASTER_FILE), content.getBytes(), StandardOpenOption.CREATE);
         System.out.println("✅ Master password set successfully!");
     }
 
@@ -38,14 +37,7 @@ public class Auth {
         }
 
         List<String> lines = Files.readAllLines(Paths.get(MASTER_FILE));
-        if (lines.isEmpty()) return false;
-
         String[] parts = lines.get(0).split(":");
-        if (parts.length < 2) {
-            System.out.println("⚠ Master key file corrupted!");
-            return false;
-        }
-
         byte[] salt = Base64.getDecoder().decode(parts[0]);
         String storedHash = parts[1];
 

@@ -1,98 +1,108 @@
+import javax.crypto.Cipher;
+import javax.crypto.spec.SecretKeySpec;
 import java.io.*;
+import java.nio.file.*;
+import java.util.*;
+import java.util.Base64;
 
 public class Vault {
     private static final String VAULT_FILE = "vault.txt";
+    private static final String SECRET_KEY = "1234567890123456"; // 16-char key
+    private static final SecretKeySpec keySpec = new SecretKeySpec(SECRET_KEY.getBytes(), "AES");
 
-    // Add a new password
+    // Encrypt
+    private static String encrypt(String plainText) throws Exception {
+        Cipher cipher = Cipher.getInstance("AES");
+        cipher.init(Cipher.ENCRYPT_MODE, keySpec);
+        return Base64.getEncoder().encodeToString(cipher.doFinal(plainText.getBytes()));
+    }
+
+    // Decrypt
+    private static String decrypt(String encryptedText) throws Exception {
+        Cipher cipher = Cipher.getInstance("AES");
+        cipher.init(Cipher.DECRYPT_MODE, keySpec);
+        return new String(cipher.doFinal(Base64.getDecoder().decode(encryptedText)));
+    }
+
+    // Add password
     public static void addPassword(String account, String password) {
-        try (FileWriter fw = new FileWriter(VAULT_FILE, true)) {
-            fw.write(account + ":" + password + "\n");
-            System.out.println("✅ Password saved to vault.txt!");
-        } catch (IOException e) {
+        try {
+            String encrypted = encrypt(account + ":" + password);
+            Files.write(Paths.get(VAULT_FILE), (encrypted + System.lineSeparator()).getBytes(),
+                    StandardOpenOption.CREATE, StandardOpenOption.APPEND);
+            System.out.println("✅ Password saved!");
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    // View all stored passwords
+    // View all
     public static void viewPasswords() {
-        File f = new File(VAULT_FILE);
-        if (!f.exists()) {
-            System.out.println("⚠ No passwords stored yet.");
-            return;
-        }
-
-        try (BufferedReader br = new BufferedReader(new FileReader(f))) {
-            String line;
+        try {
+            List<String> lines = Files.readAllLines(Paths.get(VAULT_FILE));
             System.out.println("\nStored Passwords:");
-            while ((line = br.readLine()) != null) {
-                System.out.println(line);
+            for (String line : lines) {
+                System.out.println(decrypt(line));
             }
-        } catch (IOException e) {
-            System.out.println("⚠ Error reading vault.");
+        } catch (Exception e) {
+            System.out.println("⚠ No passwords found.");
         }
     }
 
-    // Delete by account
+    // Delete
     public static void deletePassword(String account) {
-        File inputFile = new File(VAULT_FILE);
-        if (!inputFile.exists()) {
-            System.out.println("⚠ Vault empty.");
-            return;
-        }
+        try {
+            File inputFile = new File(VAULT_FILE);
+            File tempFile = new File("temp.txt");
 
-        File tempFile = new File("temp.txt");
-
-        try (BufferedReader reader = new BufferedReader(new FileReader(inputFile));
-             BufferedWriter writer = new BufferedWriter(new FileWriter(tempFile))) {
+            BufferedReader reader = new BufferedReader(new FileReader(inputFile));
+            BufferedWriter writer = new BufferedWriter(new FileWriter(tempFile));
 
             String line;
             boolean found = false;
 
             while ((line = reader.readLine()) != null) {
-                if (line.startsWith(account + ":")) {
+                String decrypted = decrypt(line);
+                if (decrypted.startsWith(account + ":")) {
                     found = true;
                     continue;
                 }
                 writer.write(line + System.lineSeparator());
             }
+            writer.close();
+            reader.close();
 
-            if (!found) {
-                System.out.println("⚠ Account not found!");
+            inputFile.delete();
+            tempFile.renameTo(inputFile);
+
+            if (found) {
+                System.out.println("🗑 Password deleted for account: " + account);
             } else {
-                System.out.println("🗑 Deleted password for account: " + account);
+                System.out.println("⚠ Account not found!");
             }
-
-        } catch (IOException e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
-
-        inputFile.delete();
-        tempFile.renameTo(inputFile);
     }
 
-    // Search account
+    // Search
     public static void searchPassword(String account) {
-        File f = new File(VAULT_FILE);
-        if (!f.exists()) {
-            System.out.println("⚠ Vault empty.");
-            return;
-        }
-
-        try (BufferedReader br = new BufferedReader(new FileReader(f))) {
+        try (BufferedReader br = new BufferedReader(new FileReader(VAULT_FILE))) {
             String line;
             boolean found = false;
             while ((line = br.readLine()) != null) {
-                if (line.startsWith(account + ":")) {
-                    System.out.println("🔎 Found: " + line);
+                String decrypted = decrypt(line);
+                if (decrypted.startsWith(account + ":")) {
+                    System.out.println("🔎 Found: " + decrypted);
                     found = true;
                     break;
                 }
             }
             if (!found) {
-                System.out.println("⚠ No password found for: " + account);
+                System.out.println("⚠ No password found for account: " + account);
             }
-        } catch (IOException e) {
-            e.printStackTrace();
+        } catch (Exception e) {
+            System.out.println("⚠ No passwords found.");
         }
     }
 }
