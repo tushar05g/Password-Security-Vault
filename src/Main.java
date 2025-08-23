@@ -42,23 +42,19 @@ public class Main {
                     String password = sc.nextLine();
                     Vault.addPassword(account, password);
                     break;
-
                 case 2:
                     Vault.viewPasswords();
                     break;
-
                 case 3:
                     System.out.print("Enter account to delete: ");
                     String delAcc = sc.nextLine();
                     Vault.deletePassword(delAcc);
                     break;
-
                 case 4:
                     System.out.print("Enter account to search: ");
                     String searchAcc = sc.nextLine();
                     Vault.searchPassword(searchAcc);
                     break;
-
                 case 5:
                     System.out.print("Enter current master password: ");
                     String oldPass = sc.nextLine();
@@ -70,11 +66,9 @@ public class Main {
                         System.out.println("❌ Wrong master password. Cannot change.");
                     }
                     break;
-
                 case 6:
                     System.out.println("Exiting...");
                     return;
-
                 default:
                     System.out.println("Invalid option!");
             }
