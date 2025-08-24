@@ -27,3 +27,8 @@ bin/
 
 ### Mac OS ###
 .DS_Store
+
+### Sensitive files for Password Vault ###
+vault.txt
+master.key
+vault.key

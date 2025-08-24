@@ -1,7 +1,5 @@
 import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
-import javax.crypto.SecretKey;
-import javax.crypto.spec.SecretKeySpec;
 import java.nio.file.*;
 import java.security.SecureRandom;
 import java.security.spec.KeySpec;
@@ -10,14 +8,13 @@ import java.util.List;
 
 public class Auth {
     private static final String MASTER_FILE = "master.key";
-    private static SecretKey secretKey; // AES key derived from master password
 
-    // Derive AES key from password + salt
-    private static SecretKey deriveKey(String password, byte[] salt) throws Exception {
+    // Generate PBKDF2 hash
+    private static String hashPassword(String password, byte[] salt) throws Exception {
         KeySpec spec = new PBEKeySpec(password.toCharArray(), salt, 65536, 256);
         SecretKeyFactory factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256");
-        byte[] keyBytes = factory.generateSecret(spec).getEncoded();
-        return new SecretKeySpec(keyBytes, "AES");
+        byte[] hash = factory.generateSecret(spec).getEncoded();
+        return Base64.getEncoder().encodeToString(hash);
     }
 
     // Create master password
@@ -26,43 +23,31 @@ public class Auth {
         byte[] salt = new byte[16];
         random.nextBytes(salt);
 
-        secretKey = deriveKey(password, salt);
-
-        // Store salt + hash of password
-        String hash = Base64.getEncoder().encodeToString(secretKey.getEncoded());
+        String hash = hashPassword(password, salt);
         String content = Base64.getEncoder().encodeToString(salt) + ":" + hash;
 
         Files.write(Paths.get(MASTER_FILE), content.getBytes(), StandardOpenOption.CREATE);
         System.out.println("✅ Master password set successfully!");
     }
 
-    // Verify entered master password
+    // Verify entered password
     public static boolean verifyMaster(String password) throws Exception {
-        if (!Files.exists(Paths.get(MASTER_FILE))) return false;
+        if (!Files.exists(Paths.get(MASTER_FILE))) {
+            return false;
+        }
 
         List<String> lines = Files.readAllLines(Paths.get(MASTER_FILE));
         String[] parts = lines.get(0).split(":");
         byte[] salt = Base64.getDecoder().decode(parts[0]);
         String storedHash = parts[1];
 
-        SecretKey testKey = deriveKey(password, salt);
-        String testHash = Base64.getEncoder().encodeToString(testKey.getEncoded());
-
-        if (storedHash.equals(testHash)) {
-            secretKey = testKey;
-            return true;
-        }
-        return false;
+        String enteredHash = hashPassword(password, salt);
+        return storedHash.equals(enteredHash);
     }
 
     // Change master password
     public static void changeMaster(String newPassword) throws Exception {
         setupMaster(newPassword);
         System.out.println("🔑 Master password changed successfully!");
-    }
-
-    // Return AES key for Vault
-    public static SecretKey getSecretKey() {
-        return secretKey;
     }
 }
