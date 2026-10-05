@@ -90,9 +90,4 @@ This project demonstrates **Java security, encryption, and file handling** in a 
 🔹 Cross-platform release (packaged JAR)  
 🔹 Two-factor authentication (2FA) for master login
 
----
 
-### 👨‍💻 Author
-
-    Tushar Goyal
-    📧 tushargoyal253@gmail.com
